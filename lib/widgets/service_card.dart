@@ -16,7 +16,6 @@ class ServiceCard extends StatelessWidget {
       return;
     }
     final uri = Uri.parse(item.launchUrl);
-    // Use external application mode to ensure it opens in the browser
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       debugPrint('Could not launch ${item.launchUrl}');
     }
@@ -37,8 +36,16 @@ class ServiceCard extends StatelessWidget {
               width: 48,
               height: 48,
               placeholder: (context, url) => const CircularProgressIndicator(),
-              errorWidget: (context, url, error) =>
-                  const Icon(Icons.broken_image, size: 48),
+              // THIS IS THE IMPORTANT CHANGE:
+              errorWidget: (context, url, error) {
+                // This will print the exact error to your debug console
+                debugPrint('Failed to load icon: $url\nError: $error');
+                return const Icon(
+                  Icons.broken_image_outlined,
+                  size: 48,
+                  color: Colors.red,
+                );
+              },
             ),
             const SizedBox(height: 8),
             Text(

@@ -1,12 +1,11 @@
 // lib/services/dashy_service.dart
 
 import 'package:http/http.dart' as http;
-import 'package:yaml/yaml.dart'; // <--- THIS WAS THE FIX
+import 'package:yaml/yaml.dart';
 import 'package:dashymobile/models/dashboard_models.dart';
 
 class DashyService {
   Future<List<DashboardSection>> fetchAndParseConfig(String baseUrl) async {
-    // Ensure the URL is valid before proceeding
     if (!baseUrl.startsWith('http')) {
       throw Exception('Invalid URL format. URL must start with http or https.');
     }
@@ -15,7 +14,6 @@ class DashyService {
     final List<DashboardSection> dashboardSections = [];
 
     try {
-      // Add a timeout to prevent the app from hanging indefinitely
       final response = await http
           .get(configUrl)
           .timeout(const Duration(seconds: 10));
@@ -23,7 +21,6 @@ class DashyService {
       if (response.statusCode == 200) {
         final yamlMap = loadYaml(response.body);
 
-        // Check if 'sections' key exists and is a list
         if (yamlMap['sections'] is! List) {
           throw Exception("Config file is missing a 'sections' list.");
         }
@@ -39,12 +36,12 @@ class DashyService {
 
               String iconUrl = item['icon'] ?? '';
 
-              // Handle relative icon URLs more robustly
+              // THIS IS THE CORRECTED LOGIC:
               if (iconUrl.isNotEmpty && !iconUrl.startsWith('http')) {
+                // Prepend the required /item-icons/ directory to the path
                 iconUrl =
-                    '$baseUrl/${iconUrl.startsWith('/') ? iconUrl.substring(1) : iconUrl}';
+                    '$baseUrl/item-icons/${iconUrl.startsWith('/') ? iconUrl.substring(1) : iconUrl}';
               } else if (iconUrl.isEmpty) {
-                // Provide a fallback transparent image or a default icon
                 iconUrl = 'https://via.placeholder.com/48/000000/000000';
               }
 
@@ -75,7 +72,6 @@ class DashyService {
         );
       }
     } catch (e) {
-      // Provide a more user-friendly error message
       throw Exception(
         'Could not connect to server or parse config file. Please check your URL and network connection.\n\nDetails: $e',
       );
