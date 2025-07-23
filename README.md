@@ -13,9 +13,9 @@ It's the perfect way to access your homeserver services from your phone.
 ### Screenshots
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ilkerol/dashymobile/main/assets/screenshots/home-screen.png" width="250">
-  <img src="https://raw.githubusercontent.com/ilkerol/dashymobile/main/assets/screenshots/settings-ip.png" width="250">
-  <img src="https://raw.githubusercontent.com/ilkerol/dashymobile/main/assets/screenshots/settings-sections.png" width="250">
+  <img src="https://raw.githubusercontent.com/ilkerol/dashymobile/main/assets/screenshots/settings.jpg" width="250">
+  <img src="https://raw.githubusercontent.com/ilkerol/dashymobile/main/assets/screenshots/darktheme.jpg" width="250">
+  <img src="https://raw.githubusercontent.com/ilkerol/dashymobile/main/assets/screenshots/lighttheme.jpg" width="250">
 </p>
 
 ---
