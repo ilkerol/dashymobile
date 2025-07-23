@@ -1,21 +1,5 @@
 // lib/models/dashboard_models.dart
 
-// A class to hold a single service/item
-class ServiceItem {
-  final String title;
-  final String? description;
-  final String iconUrl;
-  final String launchUrl;
-
-  ServiceItem({
-    required this.title,
-    this.description,
-    required this.iconUrl,
-    required this.launchUrl,
-  });
-}
-
-// A class to hold a section, like "Productivity" or "Media"
 class DashboardSection {
   final String name;
   final List<ServiceItem> items;
@@ -23,4 +7,24 @@ class DashboardSection {
   DashboardSection({required this.name, required this.items});
 }
 
-// --- THERE SHOULD BE NO OTHER CODE IN THIS FILE ---
+class ServiceItem {
+  final String title;
+  final String launchUrl; // Consistently use launchUrl
+  final String? description; // Add the description field
+  final String iconUrl;
+
+  ServiceItem({
+    required this.title,
+    required this.launchUrl,
+    this.description,
+    required this.iconUrl,
+  });
+}
+
+// This class remains correct
+class ConfigFetchResult {
+  final List<DashboardSection> sections;
+  final String activeBaseUrl;
+
+  ConfigFetchResult({required this.sections, required this.activeBaseUrl});
+}
