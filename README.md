@@ -10,6 +10,14 @@ This app provides a true native experience by fetching your `conf.yml` file from
 No more tiny icons in your browser that you can hardly click or accidentally click when scrolling. :-)
 It's the perfect way to access your homeserver services from your phone.
 
+### Screenshots
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ilkerol/dashymobile/main/assets/screenshots/home-screen.png" width="250">
+  <img src="https://raw.githubusercontent.com/ilkerol/dashymobile/main/assets/screenshots/settings-ip.png" width="250">
+  <img src="https://raw.githubusercontent.com/ilkerol/dashymobile/main/assets/screenshots/settings-sections.png" width="250">
+</p>
+
 ---
 
 ### ✨ Core Features
