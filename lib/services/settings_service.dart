@@ -5,12 +5,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class SettingsService {
   final _storage = const FlutterSecureStorage();
 
-  // Keys for secure storage (SSID key removed)
   static const String _keyLocalWlanIp = 'localWlanIp';
   static const String _keyZeroTierIp = 'zeroTierIp';
   static const String _keyDashyPort = 'dashyPort';
-  static const String _keySelectedSections = 'selectedSections';
   static const String _keyDarkModeEnabled = 'darkModeEnabled';
+  // NEW: Key for the selected sections
+  static const String _keySelectedSections = 'selectedSections';
 
   // --- URL & Port Management ---
   Future<void> saveLocalWlanIp(String ip) async =>
@@ -26,18 +26,26 @@ class SettingsService {
   Future<String?> getDashyPort() async =>
       await _storage.read(key: _keyDashyPort);
 
-  // --- Section Management (for later) ---
-  Future<void> saveSelectedSections(List<String> sectionNames) async =>
-      await _storage.write(
-        key: _keySelectedSections,
-        value: sectionNames.join(','),
-      );
-  Future<List<String>> getSelectedSections() async {
-    final sections = await _storage.read(key: _keySelectedSections);
-    return sections?.split(',').where((s) => s.isNotEmpty).toList() ?? [];
+  // --- NEW: Section Management ---
+  // Takes a list of section names and saves them as a single string
+  Future<void> saveSelectedSections(List<String> sectionNames) async {
+    await _storage.write(
+      key: _keySelectedSections,
+      value: sectionNames.join(','),
+    );
   }
 
-  // --- Dark Mode Management (for later) ---
+  // Reads the string and splits it back into a list of names
+  Future<List<String>> getSelectedSections() async {
+    final sectionsString = await _storage.read(key: _keySelectedSections);
+    // Return an empty list if nothing is stored
+    if (sectionsString == null || sectionsString.isEmpty) {
+      return [];
+    }
+    return sectionsString.split(',');
+  }
+
+  // --- Dark Mode Management ---
   Future<void> saveDarkModeEnabled(bool enabled) async =>
       await _storage.write(key: _keyDarkModeEnabled, value: enabled.toString());
   Future<bool> getDarkModeEnabled() async =>
