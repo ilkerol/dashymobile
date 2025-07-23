@@ -1,16 +1,45 @@
-# dashymobile
+# Dashy Mobile Interface
 
-A new Flutter project.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ilkerol/dashymobile/main/assets/images/dashy.png" width="128" alt="Dashy Mobile Icon">
+</p>
 
-## Getting Started
+A native, mobile-friendly frontend for your [Dashy](https://github.com/Lissy93/dashy) dashboard instance. Built with Flutter.
 
-This project is a starting point for a Flutter application.
+This app provides a true native experience by fetching your `conf.yml` file from your server and dynamically building a clean, fast, and intuitive user interface based on its contents.
+No more tiny icons in your browser that you can hardly click or accidentally click when scrolling. :-)
+It's the perfect way to access your homeserver services from your phone.
 
-A few resources to get you started if this is your first Flutter project:
+---
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### ✨ Core Features
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- **Native Performance:** No web views! The entire UI is built with Flutter widgets for a smooth and responsive experience.
+- **Dynamic UI:** Fetches and parses your remote `conf.yml` to build the dashboard on the fly.
+- **Smart URL Switching:** Automatically attempts to connect to a local (WLAN) IP first, with a fallback to a secondary IP (like ZeroTier or Tailscale). Service URLs are rewritten on-the-fly to match the active connection.
+- **Customizable Sections:** Choose which sections from your config file are visible in the app via the settings menu.
+- **Modern UI:** Features a circular (infinitely looping) swipe-able interface for sections and a dynamic navigation bar.
+- **Light & Dark Modes:** Adapts to your preference, which can be toggled in settings.
+
+### 🚀 Getting Started
+
+1.  Download the latest `.apk` from the [Releases page](https://github.com/ilkerol/dashymobile/releases).
+2.  Install the APK on your Android device.
+3.  On first launch, you will be taken to the Settings screen.
+4.  Enter the IP address and Port for your Dashy instance. You can provide both a local WLAN IP and a secondary IP (e.g., for ZeroTier).
+5.  Save the settings. The app will then fetch your configuration, you go back to settings and toggle which sections to display!
+
+### 🔧 Building from Source
+
+If you want to build the app yourself:
+
+1.  Ensure you have the [Flutter SDK](https://docs.flutter.dev/get-started/install) installed.
+2.  Clone the repository: `git clone https://github.com/ilkerol/dashymobile.git`
+3.  Navigate into the project directory: `cd dashymobile`
+4.  Install dependencies: `flutter pub get`
+5.  Run the app: `flutter run`
+
+---
+
+This project was created with the goal of providing a companion app for the amazing self-hosted dashboard, Dashy.
+A big thank you to [Lissy93](https://github.com/Lissy93) for creating and maintaining it.
