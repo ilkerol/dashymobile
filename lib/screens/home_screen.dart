@@ -39,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _reloadDashboard();
 
     // Listen to page swipes to update the navigation bar's highlighted item.
+    // This is set up once in initState for optimal performance.
     _pageController.addListener(() {
       // Check if the controller is attached and has clients before accessing page.
       if (_pageController.hasClients && _filteredSections.isNotEmpty) {
@@ -52,6 +53,12 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   /// Fetches URLs from settings, calls the Dashy service to get the config,
@@ -321,11 +328,5 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
   }
 }

@@ -42,13 +42,11 @@ class DashyService {
         if (response.statusCode == 200) {
           // On success, store the active URL and parse the content.
           _activeBaseUrl = baseUrl;
-          final sections = _parseConfig(response.body);
+          final sections = _parseConfig(response.body, baseUrl);
           return ConfigFetchResult(sections: sections, activeBaseUrl: baseUrl);
         }
       } catch (e) {
         // Log connection errors and try the next URL in the list.
-        // On a production build, this error is silent.
-        // Use `kDebugMode` to check if in debug or release.
         if (kDebugMode) {
           print('Failed to connect to $baseUrl: $e');
         }
@@ -61,9 +59,13 @@ class DashyService {
 
   /// Parses the YAML string content into a list of [DashboardSection] objects.
   ///
-  /// This method also resolves relative icon paths into fully qualified URLs
-  /// using the [_activeBaseUrl].
-  List<DashboardSection> _parseConfig(String yamlContent) {
+  /// This is a pure function whose output depends only on its inputs.
+  /// It resolves relative icon paths into fully qualified URLs using the
+  /// provided [activeBaseUrl].
+  List<DashboardSection> _parseConfig(
+    String yamlContent,
+    String activeBaseUrl,
+  ) {
     final doc = loadYaml(yamlContent);
     final List<DashboardSection> sections = [];
 
@@ -83,7 +85,7 @@ class DashyService {
             final cleanIconPath = iconUrl.startsWith('/')
                 ? iconUrl.substring(1)
                 : iconUrl;
-            iconUrl = '$_activeBaseUrl/item-icons/$cleanIconPath';
+            iconUrl = '$activeBaseUrl/item-icons/$cleanIconPath';
           } else if (iconUrl.isEmpty) {
             // Provide a placeholder for items that have no icon defined.
             iconUrl = 'https://via.placeholder.com/64/333333/FFFFFF?text=N/A';
