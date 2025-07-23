@@ -5,6 +5,11 @@ import 'package:dashymobile/services/settings_service.dart';
 import 'package:dashymobile/screens/home_screen.dart';
 import 'package:dashymobile/screens/settings_screen.dart';
 
+/// A temporary screen shown on app launch to determine the initial route.
+///
+/// This screen checks if the application has been configured with server details.
+/// It then navigates the user to the [HomeScreen] if configured, or to the
+/// [SettingsScreen] for first-time setup.
 class StartupScreen extends StatefulWidget {
   const StartupScreen({super.key});
 
@@ -19,30 +24,30 @@ class _StartupScreenState extends State<StartupScreen> {
     _checkConfigAndNavigate();
   }
 
+  /// Checks for saved server IP addresses and navigates accordingly.
   Future<void> _checkConfigAndNavigate() async {
     final settings = SettingsService();
     final localIp = await settings.getLocalWlanIp();
     final zeroTierIp = await settings.getZeroTierIp();
 
-    // Give a small delay to prevent a jarring screen flash on fast checks
+    // A small delay to prevent a jarring screen flash on fast device storage.
     await Future.delayed(const Duration(milliseconds: 500));
 
-    // If there's no context, it means the widget was removed. Do nothing.
+    // A safety check to ensure the widget is still in the tree before navigating.
     if (!mounted) return;
 
-    // Check if at least one of the IPs has been set
+    // The app is considered configured if at least one IP address is saved.
     final bool isConfigured =
         (localIp != null && localIp.isNotEmpty) ||
         (zeroTierIp != null && zeroTierIp.isNotEmpty);
 
     if (isConfigured) {
-      // If configured, go to the HomeScreen.
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     } else {
-      // If not configured, this is a first-time setup. Go to settings.
+      // If not configured, navigate to the settings screen in "first time setup" mode.
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -54,7 +59,8 @@ class _StartupScreenState extends State<StartupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Show a simple loading indicator while we check the config
+    // Display a simple loading indicator to serve as a splash screen
+    // while the configuration check is in progress.
     return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

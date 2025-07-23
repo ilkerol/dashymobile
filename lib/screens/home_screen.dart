@@ -7,6 +7,11 @@ import 'package:dashymobile/services/settings_service.dart';
 import 'package:dashymobile/widgets/service_card.dart';
 import 'package:dashymobile/screens/settings_screen.dart';
 
+/// The main screen of the application, displaying the Dashy dashboard.
+///
+/// This screen is responsible for fetching the configuration, handling user
+/// preferences for visible sections, and displaying the services in a
+/// swipe-able, paged view.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -15,25 +20,47 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // We now need to hold both the result and the filtered sections
+  // A future that holds the result of the configuration fetch operation.
   Future<ConfigFetchResult>? _dashboardFuture;
+  // A list of sections filtered according to user's settings.
   List<DashboardSection> _filteredSections = [];
 
   final _dashyService = DashyService();
   final _settingsService = SettingsService();
+  // Controller for the PageView, set to a high initial page for "infinite" looping.
   final _pageController = PageController(initialPage: 300);
+  // The index of the currently displayed page in the PageView.
   int _currentPageIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    // Fetch the dashboard data when the screen is first created.
     _reloadDashboard();
+
+    // Listen to page swipes to update the navigation bar's highlighted item.
+    _pageController.addListener(() {
+      // Check if the controller is attached and has clients before accessing page.
+      if (_pageController.hasClients && _filteredSections.isNotEmpty) {
+        // Calculate the effective index using modulo for circular navigation.
+        final newIndex =
+            _pageController.page!.round() % _filteredSections.length;
+        if (newIndex != _currentPageIndex) {
+          setState(() {
+            _currentPageIndex = newIndex;
+          });
+        }
+      }
+    });
   }
 
+  /// Fetches URLs from settings, calls the Dashy service to get the config,
+  /// and then filters the sections based on user preferences.
   Future<void> _reloadDashboard() async {
+    // Reset state to show a loading indicator and clear previous data.
     setState(() {
-      _dashboardFuture = null; // Show loading indicator
-      _filteredSections = []; // Clear old data
+      _dashboardFuture = null;
+      _filteredSections = [];
     });
 
     final localWlanIp = (await _settingsService.getLocalWlanIp())?.trim();
@@ -54,15 +81,13 @@ class _HomeScreenState extends State<HomeScreen> {
       urlsToTry.add('http://$zeroTierIp:$port');
     }
 
-    debugPrint("Attempting to connect with URLs in this order: $urlsToTry");
-
-    // Start the fetch, but also chain the filtering logic onto it
+    // Assign the future to the state variable to be used by the FutureBuilder.
     final future = _dashyService.fetchAndParseConfig(urlsToTry);
     setState(() {
       _dashboardFuture = future;
     });
 
-    // When the future completes, filter the results
+    // After the future completes successfully, filter the sections.
     future
         .then((result) async {
           final selectedNames = await _settingsService.getSelectedSections();
@@ -75,17 +100,10 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         })
         .catchError((_) {
-          // Errors are handled by the FutureBuilder, but this prevents uncaught errors
+          // Errors are primarily handled by the FutureBuilder. This empty catch
+          // block prevents uncaught Future errors in the console.
         });
   }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  // The old _filterSections method is now part of the _reloadDashboard logic
 
   @override
   Widget build(BuildContext context) {
@@ -100,45 +118,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (snapshot.hasError || !snapshot.hasData) {
-                    // This error view remains the same
                     return _buildErrorView();
                   }
 
-                  // IMPORTANT: We now use the state variable _filteredSections
+                  // Use the state variable which holds the filtered sections.
                   final sections = _filteredSections;
 
                   if (sections.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              "No sections selected to display.",
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.settings),
-                              label: const Text('Go to Settings'),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const SettingsScreen(),
-                                  ),
-                                ).then((_) => _reloadDashboard());
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
+                    return _buildEmptyStateView();
                   }
 
-                  // The rest of the build method uses the 'sections' variable
+                  // If data is loaded and sections are available, build the main dashboard view.
                   return _buildDashboardView(sections);
                 },
               ),
@@ -146,24 +136,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Builds the main UI with a PageView for sections and a bottom navigation bar.
   Widget _buildDashboardView(List<DashboardSection> sections) {
-    // Listener to update the page index state on swipe
-    _pageController.addListener(() {
-      if (_pageController.page != null && sections.isNotEmpty) {
-        final newIndex = _pageController.page!.round() % sections.length;
-        if (newIndex != _currentPageIndex) {
-          setState(() {
-            _currentPageIndex = newIndex;
-          });
-        }
-      }
-    });
-
     return Column(
       children: [
         Expanded(
           child: PageView.builder(
             controller: _pageController,
+            // The magic of modulo allows for infinite/circular swiping.
             itemBuilder: (context, index) {
               final section = sections[index % sections.length];
               return GridView.builder(
@@ -183,14 +163,12 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ),
-        // --- THIS IS THE UPDATED NAVIGATION BAR WIDGET ---
+        // The custom navigation bar at the bottom.
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
           child: Row(
             children: [
-              Expanded(
-                child: _buildDynamicNavBar(sections), // Use the new helper
-              ),
+              Expanded(child: _buildDynamicNavBar(sections)),
               IconButton(
                 icon: const Icon(Icons.settings, color: Colors.grey),
                 onPressed: () {
@@ -199,6 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     MaterialPageRoute(
                       builder: (context) => const SettingsScreen(),
                     ),
+                    // Reload data when returning from the settings screen.
                   ).then((_) => _reloadDashboard());
                 },
               ),
@@ -209,16 +188,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- THIS IS THE NEW HELPER WIDGET FOR THE DYNAMIC BAR ---
+  /// Builds the dynamic navigation bar that shows previous, current, and next sections.
   Widget _buildDynamicNavBar(List<DashboardSection> sections) {
     if (sections.isEmpty) {
-      return const SizedBox.shrink(); // Return nothing if there are no sections
+      return const SizedBox.shrink();
     }
 
-    // This makes sure we always have a valid index
     final safeCurrentIndex = _currentPageIndex % sections.length;
-
-    // Calculate indices for previous and next pages using modulo for circular logic
     final prevIndex =
         (safeCurrentIndex - 1 + sections.length) % sections.length;
     final nextIndex = (safeCurrentIndex + 1) % sections.length;
@@ -226,25 +202,25 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        // Show previous button only if there are more than 2 sections
+        // Show previous button only if there are more than 2 sections.
         if (sections.length > 2)
           _buildNavButton(sections[prevIndex].name, prevIndex, sections.length),
 
-        // Always show the current page button
+        // Always show the current page button.
         _buildNavButton(
           sections[safeCurrentIndex].name,
           safeCurrentIndex,
           sections.length,
         ),
 
-        // Show next button only if there are more than 1 section
+        // Show next button only if there are more than 1 section.
         if (sections.length > 1)
           _buildNavButton(sections[nextIndex].name, nextIndex, sections.length),
       ],
     );
   }
 
-  // --- THIS IS A NEW HELPER FOR CREATING THE BUTTONS ---
+  /// A helper to build a single navigation button.
   Widget _buildNavButton(String name, int sectionIndex, int totalSections) {
     final bool isSelected =
         (sectionIndex == (_currentPageIndex % totalSections));
@@ -255,10 +231,10 @@ class _HomeScreenState extends State<HomeScreen> {
         overlayColor: WidgetStateProperty.all(Colors.transparent),
       ),
       onPressed: () {
-        // Jump to the correct page in the infinite PageView
+        // Calculate the absolute page index to jump to in the "infinite" PageView.
         final int jumpPosition =
-            _pageController.page!.round() -
-            (_pageController.page!.round() % totalSections) +
+            _pageController.page!.floor() -
+            (_pageController.page!.floor() % totalSections) +
             sectionIndex;
         _pageController.animateToPage(
           jumpPosition,
@@ -279,6 +255,38 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Builds the view shown when no sections are selected in settings.
+  Widget _buildEmptyStateView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              "No sections selected to display.",
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.settings),
+              label: const Text('Go to Settings'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsScreen(),
+                  ),
+                ).then((_) => _reloadDashboard());
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Builds the view shown when the app fails to fetch the configuration.
   Widget _buildErrorView() {
     return Center(
       child: Padding(
@@ -313,5 +321,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 }

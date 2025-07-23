@@ -7,24 +7,30 @@ import 'package:yaml/yaml.dart';
 import 'package:dashymobile/models/dashboard_models.dart';
 import 'package:dashymobile/services/settings_service.dart';
 
+/// A service responsible for all interactions with the Dashy server.
+///
+/// This includes fetching and parsing the configuration file, and dynamically
+/// rewriting service URLs based on the currently active connection.
 class DashyService {
   final SettingsService _settingsService = SettingsService();
 
+  // The base URL that was last used to successfully fetch the config.
   String? _activeBaseUrl;
+  // The IP addresses loaded from settings, used for URL rewriting.
   String? _localWlanIp;
   String? _zeroTierIp;
 
-  // UPDATED: This function now sanitizes all inputs.
+  /// Fetches and parses the `conf.yml` from a list of potential Dashy URLs.
+  ///
+  /// It attempts to connect to each URL in [urlsToTry] in order. The first
+  /// successful connection is used. It also pre-loads IP settings to enable
+  /// the URL rewriting functionality.
+  /// Throws an [Exception] if no URLs can be reached.
   Future<ConfigFetchResult> fetchAndParseConfig(List<String> urlsToTry) async {
-    // 1. Load the raw values from settings
-    final rawLocalIp = await _settingsService.getLocalWlanIp();
-    final rawZeroTierIp = await _settingsService.getZeroTierIp();
+    // Load and trim IP settings to ensure clean data for rewriting logic.
+    _localWlanIp = (await _settingsService.getLocalWlanIp())?.trim();
+    _zeroTierIp = (await _settingsService.getZeroTierIp())?.trim();
 
-    // 2. Sanitize them by trimming whitespace. This is the crucial fix.
-    _localWlanIp = rawLocalIp?.trim();
-    _zeroTierIp = rawZeroTierIp?.trim();
-
-    // We re-check the provided URLs because they are built outside this service.
     for (String baseUrl in urlsToTry) {
       if (baseUrl.isEmpty) continue;
 
@@ -34,18 +40,29 @@ class DashyService {
             .timeout(const Duration(seconds: 4));
 
         if (response.statusCode == 200) {
+          // On success, store the active URL and parse the content.
           _activeBaseUrl = baseUrl;
           final sections = _parseConfig(response.body);
           return ConfigFetchResult(sections: sections, activeBaseUrl: baseUrl);
         }
       } catch (e) {
-        debugPrint('Failed to connect to $baseUrl: $e');
+        // Log connection errors and try the next URL in the list.
+        // On a production build, this error is silent.
+        // Use `kDebugMode` to check if in debug or release.
+        if (kDebugMode) {
+          print('Failed to connect to $baseUrl: $e');
+        }
       }
     }
 
+    // If the loop completes without a successful connection, throw an error.
     throw Exception('Could not connect to any of the provided Dashy URLs.');
   }
 
+  /// Parses the YAML string content into a list of [DashboardSection] objects.
+  ///
+  /// This method also resolves relative icon paths into fully qualified URLs
+  /// using the [_activeBaseUrl].
   List<DashboardSection> _parseConfig(String yamlContent) {
     final doc = loadYaml(yamlContent);
     final List<DashboardSection> sections = [];
@@ -61,12 +78,14 @@ class DashyService {
           if (item is! YamlMap) continue;
 
           String iconUrl = item['icon'] ?? '';
+          // If icon path is relative, prepend the server's base URL.
           if (iconUrl.isNotEmpty && !iconUrl.startsWith('http')) {
             final cleanIconPath = iconUrl.startsWith('/')
                 ? iconUrl.substring(1)
                 : iconUrl;
             iconUrl = '$_activeBaseUrl/item-icons/$cleanIconPath';
           } else if (iconUrl.isEmpty) {
+            // Provide a placeholder for items that have no icon defined.
             iconUrl = 'https://via.placeholder.com/64/333333/FFFFFF?text=N/A';
           }
 
@@ -90,38 +109,37 @@ class DashyService {
     return sections;
   }
 
-  // This logic is now reliable because its inputs are clean.
+  /// Rewrites a service URL to use the currently active server IP.
+  ///
+  /// This is the core of the dual-URL system. It checks if the [originalUrl]
+  /// contains the 'inactive' IP and, if so, replaces it with the 'active' IP.
+  /// For example, if connected via ZeroTier, it replaces the local WLAN IP in
+  /// the URL with the ZeroTier IP.
   String rewriteServiceUrl(String originalUrl) {
     if (_activeBaseUrl == null) {
-      debugPrint('Rewrite skipped: No active base URL.');
+      // Cannot rewrite if we don't know which URL is active.
       return originalUrl;
     }
 
     final activeIp = Uri.parse(_activeBaseUrl!).host;
     String? inactiveIp;
 
-    // Check if we are on ZeroTier, which means the local IP is inactive
+    // Determine which of the saved IPs is the inactive one.
     if (activeIp == _zeroTierIp && _localWlanIp != null) {
       inactiveIp = _localWlanIp;
-    }
-    // Check if we are on WLAN, which means the ZeroTier IP is inactive
-    else if (activeIp == _localWlanIp && _zeroTierIp != null) {
+    } else if (activeIp == _localWlanIp && _zeroTierIp != null) {
       inactiveIp = _zeroTierIp;
     }
 
+    // If there's no inactive IP to replace, or it's not in the URL, do nothing.
     if (inactiveIp == null || inactiveIp.isEmpty) {
-      debugPrint('Rewrite skipped: Could not determine inactive IP.');
       return originalUrl;
     }
 
     if (originalUrl.contains(inactiveIp)) {
-      debugPrint(
-        'REWRITING URL: Replacing "$inactiveIp" with "$activeIp" in "$originalUrl"',
-      );
       return originalUrl.replaceFirst(inactiveIp, activeIp);
     }
 
-    debugPrint('No rewrite needed for URL: $originalUrl');
     return originalUrl;
   }
 }
