@@ -47,6 +47,11 @@ If you want to build the app yourself:
 4.  Install dependencies: `flutter pub get`
 5.  Run the app: `flutter run`
 
+### Platform Support
+
+This application is officially developed and maintained for **Android**.
+The codebase is written in Flutter and is largely platform-independent. An iOS version is technically possible, but would require a contributor with a macOS machine and an Apple Developer account to build, test, and maintain it. Community contributions for an iOS version are welcome!
+
 ---
 
 This project was created with the goal of providing a companion app for the amazing self-hosted dashboard, Dashy.
