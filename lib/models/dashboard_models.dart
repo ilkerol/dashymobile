@@ -13,11 +13,13 @@ class DashboardSection {
 }
 
 /// Represents a single clickable service or link within a [DashboardSection].
+/// This can now also represent a "group" of items if [subItems] is not empty.
 class ServiceItem {
   /// The display name of the service (e.g., "Syncthing").
   final String title;
 
   /// The full URL that will be launched when the user taps this item.
+  /// For an item group, this will be empty.
   final String launchUrl;
 
   /// An optional short description of the service.
@@ -26,12 +28,19 @@ class ServiceItem {
   /// The fully resolved URL to the icon image for this service.
   final String iconUrl;
 
+  /// An optional list of sub-items, indicating this is an item group.
+  final List<ServiceItem>? subItems;
+
   ServiceItem({
     required this.title,
     required this.launchUrl,
     this.description,
     required this.iconUrl,
+    this.subItems, // Add subItems to the constructor
   });
+
+  /// A convenience getter to check if this item is a group.
+  bool get isGroup => subItems != null && subItems!.isNotEmpty;
 }
 
 /// A data structure to hold the result of fetching and parsing the config.

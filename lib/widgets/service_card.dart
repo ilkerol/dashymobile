@@ -2,30 +2,35 @@
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dashymobile/models/dashboard_models.dart';
 import 'package:dashymobile/services/dashy_service.dart';
 
 /// A reusable widget that displays a single service as a clickable card.
 ///
-/// It shows a cached network icon and, when tapped, launches the corresponding
-/// service URL after performing any necessary rewrites.
+/// If the service is a group (has sub-items), tapping it will open a dialog
+/// showing the sub-items. Otherwise, it will launch the service URL.
 class ServiceCard extends StatelessWidget {
   final ServiceItem item;
   final DashyService dashyService;
+  final bool showCaption;
 
   const ServiceCard({
     super.key,
     required this.item,
     required this.dashyService,
+    this.showCaption = false,
   });
 
-  /// Rewrites the service URL using the [DashyService] and launches it.
-  ///
-  /// The URL is launched in an external application (e.g., the system browser).
-  /// If launching fails, it provides user-facing feedback via a SnackBar.
-  Future<void> _launchUrl(BuildContext context) async {
-    final String urlToLaunch = dashyService.rewriteServiceUrl(item.launchUrl);
+  /// Launches a given URL after rewriting it. Shows an error on failure.
+  Future<void> _launchUrl(BuildContext context, String url) async {
+    // Do not attempt to launch an empty URL. This prevents the crash.
+    if (url.isEmpty) {
+      return;
+    }
+
+    final String urlToLaunch = dashyService.rewriteServiceUrl(url);
     final Uri uri = Uri.parse(urlToLaunch);
 
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -41,33 +46,140 @@ class ServiceCard extends StatelessWidget {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // A Card with an InkWell provides the material design elevation and ripple effect on tap.
-    return Card(
-      clipBehavior: Clip
-          .antiAlias, // Ensures the ink ripple is contained within the card's bounds.
-      child: InkWell(
-        onTap: () => _launchUrl(context),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          // Use CachedNetworkImage to efficiently load and cache icons from the network.
-          child: CachedNetworkImage(
-            imageUrl: item.iconUrl,
-            placeholder: (context, url) => const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2.0),
+  /// Displays a dialog with a list of sub-items for the user to select.
+  void _showSubItemsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(item.title),
+          // Use a constrained box to prevent the dialog from becoming too wide or tall.
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+              maxWidth: MediaQuery.of(context).size.width * 0.8,
+            ),
+            child: SizedBox(
+              width: double.maxFinite,
+              // Use ListView for a scrollable list of sub-items.
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: item.subItems!.length,
+                itemBuilder: (context, index) {
+                  final subItem = item.subItems![index];
+                  return ListTile(
+                    leading: SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: _buildIcon(
+                        subItem.iconUrl,
+                      ), // Reusable icon builder
+                    ),
+                    title: Text(subItem.title),
+                    subtitle:
+                        subItem.description != null &&
+                            subItem.description!.isNotEmpty
+                        ? Text(
+                            subItem.description!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          )
+                        : null,
+                    onTap: () {
+                      // Close the dialog before launching the URL.
+                      Navigator.of(dialogContext).pop();
+                      _launchUrl(context, subItem.launchUrl);
+                    },
+                  );
+                },
               ),
             ),
-            errorWidget: (context, url, error) =>
-                const Icon(Icons.broken_image, color: Colors.grey),
-            fadeInDuration: const Duration(milliseconds: 200),
-            fadeOutDuration: const Duration(milliseconds: 200),
           ),
+          actions: [
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        // The tap behavior now depends on whether the item is a group.
+        onTap: () {
+          if (item.isGroup) {
+            _showSubItemsDialog(context);
+          } else {
+            _launchUrl(context, item.launchUrl);
+          }
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: _buildIcon(item.iconUrl),
+              ),
+            ),
+            if (showCaption)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+                child: Text(
+                  item.title,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+          ],
         ),
       ),
     );
+  }
+
+  /// Determines whether to render a raster image, an SVG, or a local placeholder.
+  Widget _buildIcon(String iconUrl) {
+    // THIS IS THE FIX: Check for our local placeholder constant first.
+    if (iconUrl == DashyService.localPlaceholderIcon) {
+      return const Icon(Icons.broken_image, color: Colors.grey);
+    }
+
+    if (iconUrl.toLowerCase().endsWith('.svg')) {
+      return SvgPicture.network(
+        iconUrl,
+        placeholderBuilder: (context) => const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2.0),
+          ),
+        ),
+      );
+    } else {
+      return CachedNetworkImage(
+        imageUrl: iconUrl,
+        placeholder: (context, url) => const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2.0),
+          ),
+        ),
+        errorWidget: (context, url, error) =>
+            const Icon(Icons.broken_image, color: Colors.grey),
+        fadeInDuration: const Duration(milliseconds: 200),
+        fadeOutDuration: const Duration(milliseconds: 200),
+      );
+    }
   }
 }

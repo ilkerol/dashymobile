@@ -20,12 +20,10 @@ class DashyService {
   String? _localWlanIp;
   String? _zeroTierIp;
 
+  /// A constant to identify items that need a local placeholder icon.
+  static const String localPlaceholderIcon = 'LOCAL_ASSET_PLACEHOLDER';
+
   /// Fetches and parses the `conf.yml` from a list of potential Dashy URLs.
-  ///
-  /// It attempts to connect to each URL in [urlsToTry] in order. The first
-  /// successful connection is used. It also pre-loads IP settings to enable
-  /// the URL rewriting functionality.
-  /// Throws an [Exception] if no URLs can be reached.
   Future<ConfigFetchResult> fetchAndParseConfig(List<String> urlsToTry) async {
     // Load and trim IP settings to ensure clean data for rewriting logic.
     _localWlanIp = (await _settingsService.getLocalWlanIp())?.trim();
@@ -57,11 +55,44 @@ class DashyService {
     throw Exception('Could not connect to any of the provided Dashy URLs.');
   }
 
+  /// Helper function to resolve a relative icon path to a full URL.
+  String _resolveIconUrl(String? iconPath, String activeBaseUrl) {
+    if (iconPath == null || iconPath.isEmpty) {
+      // THIS IS THE FIX: Return the local constant instead of an internet URL.
+      return localPlaceholderIcon;
+    }
+    // If icon path is already a full URL, return it as is.
+    if (iconPath.startsWith('http')) {
+      return iconPath;
+    }
+    // Otherwise, prepend the server's base URL.
+    final cleanIconPath = iconPath.startsWith('/')
+        ? iconPath.substring(1)
+        : iconPath;
+    return '$activeBaseUrl/item-icons/$cleanIconPath';
+  }
+
+  /// Parses a single item (or sub-item) from a YamlMap into a ServiceItem.
+  ServiceItem _parseSingleItem(YamlMap item, String activeBaseUrl) {
+    // Recursively parse sub-items if they exist
+    List<ServiceItem>? subItems;
+    if (item.containsKey('subItems') && item['subItems'] is YamlList) {
+      subItems = (item['subItems'] as YamlList)
+          .whereType<YamlMap>()
+          .map((subItem) => _parseSingleItem(subItem, activeBaseUrl))
+          .toList();
+    }
+
+    return ServiceItem(
+      title: item['title'] ?? 'No Title',
+      launchUrl: item['url'] ?? '', // Default to empty string
+      description: item['description'],
+      iconUrl: _resolveIconUrl(item['icon'], activeBaseUrl),
+      subItems: subItems,
+    );
+  }
+
   /// Parses the YAML string content into a list of [DashboardSection] objects.
-  ///
-  /// This is a pure function whose output depends only on its inputs.
-  /// It resolves relative icon paths into fully qualified URLs using the
-  /// provided [activeBaseUrl].
   List<DashboardSection> _parseConfig(
     String yamlContent,
     String activeBaseUrl,
@@ -74,52 +105,31 @@ class DashyService {
     }
 
     for (final section in doc['sections']) {
-      if (section.containsKey('items') && section['items'] is YamlList) {
-        final List<ServiceItem> items = [];
-        for (final item in section['items']) {
-          if (item is! YamlMap) continue;
-
-          String iconUrl = item['icon'] ?? '';
-          // If icon path is relative, prepend the server's base URL.
-          if (iconUrl.isNotEmpty && !iconUrl.startsWith('http')) {
-            final cleanIconPath = iconUrl.startsWith('/')
-                ? iconUrl.substring(1)
-                : iconUrl;
-            iconUrl = '$activeBaseUrl/item-icons/$cleanIconPath';
-          } else if (iconUrl.isEmpty) {
-            // Provide a placeholder for items that have no icon defined.
-            iconUrl = 'https://via.placeholder.com/64/333333/FFFFFF?text=N/A';
-          }
-
-          items.add(
-            ServiceItem(
-              title: item['title'] ?? 'No Title',
-              launchUrl: item['url'] ?? '#',
-              description: item['description'],
-              iconUrl: iconUrl,
-            ),
-          );
-        }
-        sections.add(
-          DashboardSection(
-            name: section['name'] ?? 'Unnamed Section',
-            items: items,
-          ),
-        );
+      if (section is! YamlMap ||
+          !section.containsKey('items') ||
+          section['items'] is! YamlList) {
+        continue;
       }
+
+      final List<ServiceItem> items = (section['items'] as YamlList)
+          .whereType<YamlMap>()
+          .map((item) => _parseSingleItem(item, activeBaseUrl))
+          .toList();
+
+      sections.add(
+        DashboardSection(
+          name: section['name'] ?? 'Unnamed Section',
+          items: items,
+        ),
+      );
     }
     return sections;
   }
 
   /// Rewrites a service URL to use the currently active server IP.
-  ///
-  /// This is the core of the dual-URL system. It checks if the [originalUrl]
-  /// contains the 'inactive' IP and, if so, replaces it with the 'active' IP.
-  /// For example, if connected via ZeroTier, it replaces the local WLAN IP in
-  /// the URL with the ZeroTier IP.
   String rewriteServiceUrl(String originalUrl) {
-    if (_activeBaseUrl == null) {
-      // Cannot rewrite if we don't know which URL is active.
+    if (_activeBaseUrl == null || originalUrl.isEmpty) {
+      // Cannot rewrite if we don't know which URL is active or if URL is empty.
       return originalUrl;
     }
 

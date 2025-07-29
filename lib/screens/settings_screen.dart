@@ -9,12 +9,6 @@ import 'package:dashymobile/services/settings_service.dart';
 import 'package:dashymobile/screens/home_screen.dart';
 import 'package:dashymobile/services/theme_service.dart';
 
-/// A screen for configuring application settings.
-///
-/// This includes setting the Dashy server URLs, selecting which dashboard
-/// sections to display, and toggling the theme.
-/// The [isFirstTimeSetup] flag modifies behavior for the initial app launch,
-/// forcing the user to save before proceeding to the [HomeScreen].
 class SettingsScreen extends StatefulWidget {
   final bool isFirstTimeSetup;
   const SettingsScreen({super.key, this.isFirstTimeSetup = false});
@@ -27,22 +21,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final SettingsService _settingsService = SettingsService();
   final DashyService _dashyService = DashyService();
 
-  // Controllers for the IP and Port text fields.
+  // Controllers for Dashy settings
   final TextEditingController _localWlanIpController = TextEditingController();
   final TextEditingController _zeroTierIpController = TextEditingController();
   final TextEditingController _dashyPortController = TextEditingController();
-  // Local state for the dark mode switch.
-  bool _isDarkModeEnabled = true;
 
-  // A future that holds the complete list of sections fetched from the server.
+  // Controller for Glances setting
+  final TextEditingController _glancesUrlController = TextEditingController();
+
+  // Local state for UI controls
+  bool _isDarkModeEnabled = true;
+  bool _showCaptionsEnabled = false;
+
   Future<List<DashboardSection>>? _allSectionsFuture;
-  // A set that tracks the names of the sections the user wants to see.
   Set<String> _selectedSectionNames = {};
 
   @override
   void initState() {
     super.initState();
-    // On initialization, load saved settings and then fetch available sections.
     _loadSettingsAndFetchSections();
   }
 
@@ -51,36 +47,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _localWlanIpController.dispose();
     _zeroTierIpController.dispose();
     _dashyPortController.dispose();
+    _glancesUrlController.dispose();
     super.dispose();
   }
 
-  /// Coordinates loading saved preferences and then fetching the section list.
   Future<void> _loadSettingsAndFetchSections() async {
     await _loadSettings();
     _fetchAvailableSections();
   }
 
-  /// Loads all saved settings from secure storage and populates the UI.
   Future<void> _loadSettings() async {
-    final localWlanIp = await _settingsService.getLocalWlanIp();
-    final zeroTierIp = await _settingsService.getZeroTierIp();
-    final dashyPort = await _settingsService.getDashyPort();
-    final isDarkMode = await _settingsService.getDarkModeEnabled();
-    final selectedSections = await _settingsService.getSelectedSections();
+    final settingsToLoad = await Future.wait([
+      _settingsService.getLocalWlanIp(),
+      _settingsService.getZeroTierIp(),
+      _settingsService.getDashyPort(),
+      _settingsService.getDarkModeEnabled(),
+      _settingsService.getSelectedSections(),
+      _settingsService.getShowCaptions(),
+      _settingsService.getGlancesUrl(),
+    ]);
 
     if (!mounted) return;
 
     setState(() {
-      _localWlanIpController.text = localWlanIp ?? '';
-      _zeroTierIpController.text = zeroTierIp ?? '';
-      _dashyPortController.text = dashyPort ?? '4444';
-      _isDarkModeEnabled = isDarkMode;
-      _selectedSectionNames = selectedSections.toSet();
+      _localWlanIpController.text = settingsToLoad[0] as String? ?? '';
+      _zeroTierIpController.text = settingsToLoad[1] as String? ?? '';
+      _dashyPortController.text = settingsToLoad[2] as String? ?? '4444';
+      _isDarkModeEnabled = settingsToLoad[3] as bool;
+      _selectedSectionNames = (settingsToLoad[4] as List<String>).toSet();
+      _showCaptionsEnabled = settingsToLoad[5] as bool;
+      _glancesUrlController.text = settingsToLoad[6] as String? ?? '';
     });
   }
 
-  /// Fetches the list of all available sections from the Dashy server.
-  /// It uses the URLs currently entered in the text fields.
   void _fetchAvailableSections() {
     final localIp = _localWlanIpController.text.trim();
     final zeroTierIp = _zeroTierIpController.text.trim();
@@ -96,7 +95,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (urlsToTry.isNotEmpty) {
       setState(() {
-        // This triggers the FutureBuilder to show a loading indicator and update the list.
         _allSectionsFuture = _dashyService
             .fetchAndParseConfig(urlsToTry)
             .then((result) => result.sections);
@@ -104,19 +102,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  /// Saves all current settings from the UI to persistent storage.
-  /// After saving, it navigates either back or to the home screen.
   Future<void> _saveSettings() async {
-    await _settingsService.saveLocalWlanIp(_localWlanIpController.text.trim());
-    await _settingsService.saveZeroTierIp(_zeroTierIpController.text.trim());
-    await _settingsService.saveDashyPort(_dashyPortController.text.trim());
-    await _settingsService.saveDarkModeEnabled(_isDarkModeEnabled);
-    await _settingsService.saveSelectedSections(_selectedSectionNames.toList());
+    await Future.wait([
+      _settingsService.saveLocalWlanIp(_localWlanIpController.text.trim()),
+      _settingsService.saveZeroTierIp(_zeroTierIpController.text.trim()),
+      _settingsService.saveDashyPort(_dashyPortController.text.trim()),
+      _settingsService.saveDarkModeEnabled(_isDarkModeEnabled),
+      _settingsService.saveShowCaptions(_showCaptionsEnabled),
+      _settingsService.saveSelectedSections(_selectedSectionNames.toList()),
+      _settingsService.saveGlancesUrl(_glancesUrlController.text.trim()),
+    ]);
 
     if (!mounted) return;
 
-    // If it's the first time setup, replace the current screen with HomeScreen.
-    // Otherwise, just pop the current screen to return to where the user was.
     if (widget.isFirstTimeSetup) {
       Navigator.pushReplacement(
         context,
@@ -132,7 +130,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
-        // Do not show a back button during the first-time setup flow.
         automaticallyImplyLeading: !widget.isFirstTimeSetup,
         actions: [
           IconButton(
@@ -143,16 +140,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const SizedBox(height: 16),
+            Text(
+              'Dashy Settings',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 16),
             _buildTextFieldWithLabel(
               label: 'Homeserver IP (Local WLAN):',
               controller: _localWlanIpController,
               hint: '192.168.178.52',
               keyboardType: TextInputType.url,
-              onTest: () => _testConnection(
+              onTest: () => _testDashyConnection(
                 _localWlanIpController.text,
                 _dashyPortController.text,
               ),
@@ -163,7 +166,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               controller: _zeroTierIpController,
               hint: '192.168.191.191',
               keyboardType: TextInputType.url,
-              onTest: () => _testConnection(
+              onTest: () => _testDashyConnection(
                 _zeroTierIpController.text,
                 _dashyPortController.text,
               ),
@@ -176,6 +179,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               keyboardType: TextInputType.number,
             ),
             const Divider(height: 48),
+            Text(
+              'Glances Widget (Optional)',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 16),
+            _buildTextFieldWithLabel(
+              label: 'Glances Full Base URL:',
+              controller: _glancesUrlController,
+              hint: 'http://192.168.178.52:61208',
+              keyboardType: TextInputType.url,
+              onTest: () => _testGlancesConnection(_glancesUrlController.text),
+            ),
+            const Divider(height: 48),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -183,7 +199,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Visible Sections',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                // This button allows the user to reload the sections after changing IP/Port.
                 IconButton(
                   icon: const Icon(Icons.refresh),
                   onPressed: _fetchAvailableSections,
@@ -194,13 +209,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
             _buildSectionToggleList(),
             const Divider(height: 48),
+            Text(
+              'Display Options',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              title: const Text('Show Icon Captions'),
+              subtitle: const Text('Display the name below each service icon'),
+              value: _showCaptionsEnabled,
+              onChanged: (bool value) {
+                setState(() {
+                  _showCaptionsEnabled = value;
+                });
+              },
+              secondary: Icon(
+                _showCaptionsEnabled
+                    ? Icons.text_fields_rounded
+                    : Icons.text_format_outlined,
+              ),
+            ),
+            const Divider(height: 24, indent: 56, endIndent: 16),
             SwitchListTile(
               title: const Text('Enable Dark Mode'),
               value: _isDarkModeEnabled,
               onChanged: (bool value) {
-                // Update the theme globally via the theme service.
                 themeService.toggleTheme(value);
-                // Update the local state to reflect the change on the switch.
                 setState(() {
                   _isDarkModeEnabled = value;
                 });
@@ -209,7 +243,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _isDarkModeEnabled ? Icons.dark_mode : Icons.light_mode,
               ),
             ),
-            const Divider(height: 48),
+            const SizedBox(height: 48),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -230,13 +264,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
           ],
         ),
       ),
     );
   }
 
-  /// Builds the list of toggleable switches for each dashboard section.
   Widget _buildSectionToggleList() {
     if (_allSectionsFuture == null) {
       return const Text('Enter server details and refresh to load sections.');
@@ -278,7 +312,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// A helper to build a labeled text field, optionally with a test button.
   Widget _buildTextFieldWithLabel({
     required String label,
     required TextEditingController controller,
@@ -299,7 +332,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 keyboardType: keyboardType,
                 decoration: InputDecoration(
                   hintText: hint,
-                  // Use theme-aware color for hint text for light/dark mode compatibility.
                   hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
                   border: const OutlineInputBorder(),
                   contentPadding: const EdgeInsets.symmetric(
@@ -324,19 +356,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// Pings the server to check for a valid connection and provides feedback.
-  Future<void> _testConnection(String ip, String port) async {
+  Future<void> _testDashyConnection(String ip, String port) async {
     if (ip.trim().isEmpty || port.trim().isEmpty) {
       _showFeedback('IP address and port cannot be empty.', isError: true);
       return;
     }
-    _showFeedback('Pinging http://$ip:$port/...', isError: false);
+    final url = Uri.parse('http://${ip.trim()}:${port.trim()}/conf.yml');
+    _showFeedback('Pinging $url...', isError: false);
     try {
-      // Use a HEAD request as we only need to check for a valid response, not the body content.
-      final response = await http
-          .head(Uri.parse('http://$ip:$port/conf.yml'))
-          .timeout(const Duration(seconds: 5));
-
+      final response = await http.head(url).timeout(const Duration(seconds: 5));
       if (response.statusCode >= 200 && response.statusCode < 300) {
         _showFeedback('Success! Connection established.', isError: false);
       } else {
@@ -345,22 +373,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
           isError: true,
         );
       }
-    } on TimeoutException {
-      _showFeedback('Failed: The connection timed out.', isError: true);
     } catch (e) {
       _showFeedback('Failed: Could not connect to the server.', isError: true);
     }
   }
 
-  /// Shows a SnackBar with a feedback message.
+  Future<void> _testGlancesConnection(String baseUrl) async {
+    if (baseUrl.trim().isEmpty) {
+      _showFeedback('Glances URL cannot be empty.', isError: true);
+      return;
+    }
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl/api/3/cpu');
+    _showFeedback('Pinging $url...', isError: false);
+    try {
+      // Use GET for APIs as it's more universally supported than HEAD.
+      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        _showFeedback(
+          'Success! Connection to Glances API established.',
+          isError: false,
+        );
+      } else {
+        _showFeedback(
+          'Failed: Server responded with status ${response.statusCode}.',
+          isError: true,
+        );
+      }
+    } catch (e) {
+      _showFeedback('Failed: Could not connect to the server.', isError: true);
+    }
+  }
+
   void _showFeedback(String message, {required bool isError}) {
     if (!mounted) return;
-    // Hide any currently displayed SnackBar before showing a new one.
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        // Use theme-aware colors for feedback.
         backgroundColor: isError
             ? Theme.of(context).colorScheme.error
             : Theme.of(context).colorScheme.primary,

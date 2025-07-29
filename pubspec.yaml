@@ -36,6 +36,8 @@ dependencies:
   cached_network_image: ^3.3.1
   flutter_secure_storage: ^9.2.2
   smooth_page_indicator: ^1.1.0
+  flutter_svg: ^2.0.10+1
+  fl_chart: ^0.68.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
