@@ -9,7 +9,14 @@ class DashboardSection {
   /// A list of [ServiceItem] objects that belong to this section.
   final List<ServiceItem> items;
 
-  DashboardSection({required this.name, required this.items});
+  /// A list of [DashboardWidget] objects that belong to this section.
+  final List<DashboardWidget> widgets;
+
+  DashboardSection({
+    required this.name,
+    required this.items,
+    required this.widgets,
+  });
 }
 
 /// Represents a single clickable service or link within a [DashboardSection].
@@ -36,11 +43,25 @@ class ServiceItem {
     required this.launchUrl,
     this.description,
     required this.iconUrl,
-    this.subItems, // Add subItems to the constructor
+    this.subItems,
   });
 
   /// A convenience getter to check if this item is a group.
   bool get isGroup => subItems != null && subItems!.isNotEmpty;
+}
+
+/// Represents a single widget defined in the Dashy conf.yml.
+class DashboardWidget {
+  /// The type of the widget, e.g., "gl-current-cpu".
+  final String type;
+
+  /// The unique ID of the widget from the config.
+  final String? id;
+
+  /// A map of options for the widget, e.g., {'hostname': 'http://...'}.
+  final Map<String, dynamic> options;
+
+  DashboardWidget({required this.type, this.id, required this.options});
 }
 
 /// A data structure to hold the result of fetching and parsing the config.

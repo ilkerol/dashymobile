@@ -1,6 +1,7 @@
 // lib/screens/settings_screen.dart
 
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:dashymobile/models/dashboard_models.dart';
@@ -21,18 +22,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final SettingsService _settingsService = SettingsService();
   final DashyService _dashyService = DashyService();
 
-  // Controllers for Dashy settings
-  final TextEditingController _localWlanIpController = TextEditingController();
-  final TextEditingController _zeroTierIpController = TextEditingController();
-  final TextEditingController _dashyPortController = TextEditingController();
-
-  // Controller for Glances setting
+  final TextEditingController _localDashyUrlController =
+      TextEditingController();
+  final TextEditingController _secondaryDashyUrlController =
+      TextEditingController();
   final TextEditingController _glancesUrlController = TextEditingController();
 
-  // Local state for UI controls
   bool _isDarkModeEnabled = true;
   bool _showCaptionsEnabled = false;
-
   Future<List<DashboardSection>>? _allSectionsFuture;
   Set<String> _selectedSectionNames = {};
 
@@ -44,9 +41,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
-    _localWlanIpController.dispose();
-    _zeroTierIpController.dispose();
-    _dashyPortController.dispose();
+    _localDashyUrlController.dispose();
+    _secondaryDashyUrlController.dispose();
     _glancesUrlController.dispose();
     super.dispose();
   }
@@ -57,42 +53,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final settingsToLoad = await Future.wait([
-      _settingsService.getLocalWlanIp(),
-      _settingsService.getZeroTierIp(),
-      _settingsService.getDashyPort(),
+    final settings = await Future.wait([
+      _settingsService.getLocalDashyUrl(),
+      _settingsService.getSecondaryDashyUrl(),
+      _settingsService.getGlancesUrl(),
       _settingsService.getDarkModeEnabled(),
       _settingsService.getSelectedSections(),
       _settingsService.getShowCaptions(),
-      _settingsService.getGlancesUrl(),
     ]);
-
     if (!mounted) return;
-
     setState(() {
-      _localWlanIpController.text = settingsToLoad[0] as String? ?? '';
-      _zeroTierIpController.text = settingsToLoad[1] as String? ?? '';
-      _dashyPortController.text = settingsToLoad[2] as String? ?? '4444';
-      _isDarkModeEnabled = settingsToLoad[3] as bool;
-      _selectedSectionNames = (settingsToLoad[4] as List<String>).toSet();
-      _showCaptionsEnabled = settingsToLoad[5] as bool;
-      _glancesUrlController.text = settingsToLoad[6] as String? ?? '';
+      _localDashyUrlController.text = settings[0] as String? ?? '';
+      _secondaryDashyUrlController.text = settings[1] as String? ?? '';
+      _glancesUrlController.text = settings[2] as String? ?? '';
+      _isDarkModeEnabled = settings[3] as bool;
+      _selectedSectionNames = (settings[4] as List<String>).toSet();
+      _showCaptionsEnabled = settings[5] as bool;
     });
   }
 
   void _fetchAvailableSections() {
-    final localIp = _localWlanIpController.text.trim();
-    final zeroTierIp = _zeroTierIpController.text.trim();
-    final port = _dashyPortController.text.trim();
-
-    final urlsToTry = <String>[];
-    if (localIp.isNotEmpty && port.isNotEmpty) {
-      urlsToTry.add('http://$localIp:$port');
-    }
-    if (zeroTierIp.isNotEmpty && port.isNotEmpty) {
-      urlsToTry.add('http://$zeroTierIp:$port');
-    }
-
+    final urlsToTry = <String>[
+      _localDashyUrlController.text.trim(),
+      _secondaryDashyUrlController.text.trim(),
+    ].where((url) => url.isNotEmpty).toList();
     if (urlsToTry.isNotEmpty) {
       setState(() {
         _allSectionsFuture = _dashyService
@@ -104,17 +88,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _saveSettings() async {
     await Future.wait([
-      _settingsService.saveLocalWlanIp(_localWlanIpController.text.trim()),
-      _settingsService.saveZeroTierIp(_zeroTierIpController.text.trim()),
-      _settingsService.saveDashyPort(_dashyPortController.text.trim()),
+      _settingsService.saveLocalDashyUrl(_localDashyUrlController.text.trim()),
+      _settingsService.saveSecondaryDashyUrl(
+        _secondaryDashyUrlController.text.trim(),
+      ),
+      _settingsService.saveGlancesUrl(_glancesUrlController.text.trim()),
       _settingsService.saveDarkModeEnabled(_isDarkModeEnabled),
       _settingsService.saveShowCaptions(_showCaptionsEnabled),
       _settingsService.saveSelectedSections(_selectedSectionNames.toList()),
-      _settingsService.saveGlancesUrl(_glancesUrlController.text.trim()),
     ]);
-
     if (!mounted) return;
-
     if (widget.isFirstTimeSetup) {
       Navigator.pushReplacement(
         context,
@@ -151,44 +134,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 16),
             _buildTextFieldWithLabel(
-              label: 'Homeserver IP (Local WLAN):',
-              controller: _localWlanIpController,
-              hint: '192.168.178.52',
-              keyboardType: TextInputType.url,
-              onTest: () => _testDashyConnection(
-                _localWlanIpController.text,
-                _dashyPortController.text,
-              ),
+              label: 'Primary Dashy URL (e.g., Local WLAN):',
+              controller: _localDashyUrlController,
+              hint: 'http://192.168.1.10:4444',
+              onTest: () => _testDashyConnection(_localDashyUrlController.text),
             ),
             const SizedBox(height: 24),
             _buildTextFieldWithLabel(
-              label: 'Secondary IP (ZeroTier, Tailscale, etc.):',
-              controller: _zeroTierIpController,
-              hint: '192.168.191.191',
-              keyboardType: TextInputType.url,
-              onTest: () => _testDashyConnection(
-                _zeroTierIpController.text,
-                _dashyPortController.text,
-              ),
-            ),
-            const SizedBox(height: 24),
-            _buildTextFieldWithLabel(
-              label: 'Dashy WebUI Port:',
-              controller: _dashyPortController,
-              hint: '4444',
-              keyboardType: TextInputType.number,
+              label: 'Secondary Dashy URL (e.g., VPN/Public):',
+              controller: _secondaryDashyUrlController,
+              hint: 'https://dashy.your-domain.com',
+              onTest: () =>
+                  _testDashyConnection(_secondaryDashyUrlController.text),
             ),
             const Divider(height: 48),
             Text(
-              'Glances Widget (Optional)',
+              'Widget Integrations',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 16),
             _buildTextFieldWithLabel(
-              label: 'Glances Full Base URL:',
+              label: 'Glances Full URL (Optional):',
               controller: _glancesUrlController,
-              hint: 'http://192.168.178.52:61208',
-              keyboardType: TextInputType.url,
+              hint: 'http://192.168.1.10:61208',
               onTest: () => _testGlancesConnection(_glancesUrlController.text),
             ),
             const Divider(height: 48),
@@ -218,16 +186,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: const Text('Show Icon Captions'),
               subtitle: const Text('Display the name below each service icon'),
               value: _showCaptionsEnabled,
-              onChanged: (bool value) {
-                setState(() {
-                  _showCaptionsEnabled = value;
-                });
-              },
-              secondary: Icon(
-                _showCaptionsEnabled
-                    ? Icons.text_fields_rounded
-                    : Icons.text_format_outlined,
-              ),
+              onChanged: (bool value) =>
+                  setState(() => _showCaptionsEnabled = value),
             ),
             const Divider(height: 24, indent: 56, endIndent: 16),
             SwitchListTile(
@@ -235,13 +195,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: _isDarkModeEnabled,
               onChanged: (bool value) {
                 themeService.toggleTheme(value);
-                setState(() {
-                  _isDarkModeEnabled = value;
-                });
+                setState(() => _isDarkModeEnabled = value);
               },
-              secondary: Icon(
-                _isDarkModeEnabled ? Icons.dark_mode : Icons.light_mode,
-              ),
             ),
             const SizedBox(height: 48),
             Row(
@@ -257,10 +212,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onPressed: _saveSettings,
                   icon: const Icon(Icons.save),
                   label: const Text('Save & Close'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  ),
                 ),
               ],
             ),
@@ -272,41 +223,82 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSectionToggleList() {
-    if (_allSectionsFuture == null) {
+    if (_allSectionsFuture == null)
       return const Text('Enter server details and refresh to load sections.');
-    }
     return FutureBuilder<List<DashboardSection>>(
       future: _allSectionsFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting)
           return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty)
           return const Center(
             child: Text('Could not load sections from server.'),
           );
-        }
         final allSections = snapshot.data!;
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: allSections.length,
-          itemBuilder: (context, index) {
-            final section = allSections[index];
-            return SwitchListTile(
-              title: Text(section.name),
-              value: _selectedSectionNames.contains(section.name),
-              onChanged: (bool isSelected) {
-                setState(() {
-                  if (isSelected) {
-                    _selectedSectionNames.add(section.name);
-                  } else {
-                    _selectedSectionNames.remove(section.name);
-                  }
-                });
-              },
-            );
-          },
+        final widgetSections = allSections
+            .where((s) => s.widgets.isNotEmpty)
+            .toList();
+        final iconOnlySections = allSections
+            .where((s) => s.widgets.isEmpty && s.items.isNotEmpty)
+            .toList();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widgetSections.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+                child: Text(
+                  'Widget Sections',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: widgetSections.length,
+                itemBuilder: (context, index) {
+                  final section = widgetSections[index];
+                  return SwitchListTile(
+                    title: Text(section.name),
+                    value: _selectedSectionNames.contains(section.name),
+                    onChanged: (bool isSelected) => setState(
+                      () => isSelected
+                          ? _selectedSectionNames.add(section.name)
+                          : _selectedSectionNames.remove(section.name),
+                    ),
+                  );
+                },
+              ),
+            ],
+            if (widgetSections.isNotEmpty && iconOnlySections.isNotEmpty)
+              const Divider(height: 24),
+            if (iconOnlySections.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+                child: Text(
+                  'Icon Sections',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: iconOnlySections.length,
+                itemBuilder: (context, index) {
+                  final section = iconOnlySections[index];
+                  return SwitchListTile(
+                    title: Text(section.name),
+                    value: _selectedSectionNames.contains(section.name),
+                    onChanged: (bool isSelected) => setState(
+                      () => isSelected
+                          ? _selectedSectionNames.add(section.name)
+                          : _selectedSectionNames.remove(section.name),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
         );
       },
     );
@@ -315,7 +307,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildTextFieldWithLabel({
     required String label,
     required TextEditingController controller,
-    TextInputType keyboardType = TextInputType.text,
     String? hint,
     VoidCallback? onTest,
   }) {
@@ -329,10 +320,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Expanded(
               child: TextFormField(
                 controller: controller,
-                keyboardType: keyboardType,
+                keyboardType: TextInputType.url,
                 decoration: InputDecoration(
                   hintText: hint,
-                  hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
                   border: const OutlineInputBorder(),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -356,17 +346,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _testDashyConnection(String ip, String port) async {
-    if (ip.trim().isEmpty || port.trim().isEmpty) {
-      _showFeedback('IP address and port cannot be empty.', isError: true);
-      return;
-    }
-    final url = Uri.parse('http://${ip.trim()}:${port.trim()}/conf.yml');
-    _showFeedback('Pinging $url...', isError: false);
+  Future<void> _testDashyConnection(String baseUrl) async {
+    if (baseUrl.trim().isEmpty) return;
     try {
+      final uri = Uri.parse(baseUrl.trim());
+      final cleanBaseUrl = uri.toString().endsWith('/')
+          ? uri.toString().substring(0, uri.toString().length - 1)
+          : uri.toString();
+      final url = Uri.parse('$cleanBaseUrl/conf.yml');
+      _showFeedback('Pinging $url...', isError: false);
       final response = await http.head(url).timeout(const Duration(seconds: 5));
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        _showFeedback('Success! Connection established.', isError: false);
+        _showFeedback('Success! Dashy connection is valid.', isError: false);
       } else {
         _showFeedback(
           'Failed: Server responded with status ${response.statusCode}.',
@@ -374,36 +365,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       }
     } catch (e) {
-      _showFeedback('Failed: Could not connect to the server.', isError: true);
+      _showFeedback('Connection failed or URL is invalid.', isError: true);
     }
   }
 
   Future<void> _testGlancesConnection(String baseUrl) async {
-    if (baseUrl.trim().isEmpty) {
-      _showFeedback('Glances URL cannot be empty.', isError: true);
-      return;
-    }
-    final cleanBaseUrl = baseUrl.endsWith('/')
-        ? baseUrl.substring(0, baseUrl.length - 1)
-        : baseUrl;
-    final url = Uri.parse('$cleanBaseUrl/api/3/cpu');
-    _showFeedback('Pinging $url...', isError: false);
+    if (baseUrl.trim().isEmpty) return;
     try {
-      // Use GET for APIs as it's more universally supported than HEAD.
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        _showFeedback(
-          'Success! Connection to Glances API established.',
-          isError: false,
-        );
-      } else {
-        _showFeedback(
-          'Failed: Server responded with status ${response.statusCode}.',
-          isError: true,
-        );
-      }
+      final uri = Uri.parse(baseUrl.trim());
+      final host = uri.host;
+      final port = uri.port;
+      if (host.isEmpty) throw const FormatException();
+      _showFeedback('Pinging $host on port $port...', isError: false);
+      final socket = await Socket.connect(
+        host,
+        port,
+        timeout: const Duration(seconds: 4),
+      );
+      await socket.close();
+      _showFeedback('Success! Glances port is reachable.', isError: false);
     } catch (e) {
-      _showFeedback('Failed: Could not connect to the server.', isError: true);
+      _showFeedback('Connection failed or URL is invalid.', isError: true);
     }
   }
 
