@@ -52,6 +52,20 @@ If you want to build the app yourself:
 This application is officially developed and maintained for **Android**.
 The codebase is written in Flutter and is largely platform-independent. An iOS version is technically possible, but would require a contributor with a macOS machine and an Apple Developer account to build, test, and maintain it. Community contributions for an iOS version are welcome!
 
+### What's new in v1.1
+
+This release focuses on adding support for more of Dashy's core features, allowing more users to see their complete dashboard layout natively.
+
+### ✨ New Features
+- **SVG Icon Support:** Service icons that use the `.svg` format are now correctly rendered in the app.
+- **Optional Icon Captions:** A new toggle in the Settings screen allows you to show or hide the titles (`captions`) below each service icon.
+- **Item Group Support:** Dashy "Item Groups" (items with a `subItems` key) are now fully supported. Tapping a group icon will open a clean dialog showing the sub-items, which can then be launched individually.
+
+### 🐛 Bug Fixes
+- Fixed a critical crash that would occur when tapping on an Item Group that had an empty `url` field.
+- Fixed padding to stop android navigation bar interference with buttons in the settings sections
+- Fixed some minor rendering bugs
+
 ---
 
 This project was created with the goal of providing a companion app for the amazing self-hosted dashboard, Dashy.

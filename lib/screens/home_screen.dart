@@ -24,6 +24,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<ConfigFetchResult>? _dashboardFuture;
   // A list of sections filtered according to user's settings.
   List<DashboardSection> _filteredSections = [];
+  // State variable to hold the caption visibility setting.
+  bool _showCaptions = false;
 
   final _dashyService = DashyService();
   final _settingsService = SettingsService();
@@ -69,6 +71,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _dashboardFuture = null;
       _filteredSections = [];
     });
+
+    // Fetch caption setting along with URLs.
+    _showCaptions = await _settingsService.getShowCaptions();
 
     final localWlanIp = (await _settingsService.getLocalWlanIp())?.trim();
     final zeroTierIp = (await _settingsService.getZeroTierIp())?.trim();
@@ -155,16 +160,20 @@ class _HomeScreenState extends State<HomeScreen> {
               final section = sections[index % sections.length];
               return GridView.builder(
                 padding: const EdgeInsets.fromLTRB(12, 24, 12, 12),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
-                  childAspectRatio: 1.0,
+                  childAspectRatio: _showCaptions ? 0.85 : 1.0,
                   crossAxisSpacing: 4,
                   mainAxisSpacing: 4,
                 ),
                 itemCount: section.items.length,
                 itemBuilder: (context, itemIndex) {
                   final item = section.items[itemIndex];
-                  return ServiceCard(item: item, dashyService: _dashyService);
+                  return ServiceCard(
+                    item: item,
+                    dashyService: _dashyService,
+                    showCaption: _showCaptions,
+                  );
                 },
               );
             },
@@ -211,18 +220,33 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         // Show previous button only if there are more than 2 sections.
         if (sections.length > 2)
-          _buildNavButton(sections[prevIndex].name, prevIndex, sections.length),
+          Expanded(
+            child: _buildNavButton(
+              sections[prevIndex].name,
+              prevIndex,
+              sections.length,
+            ),
+          ),
 
         // Always show the current page button.
-        _buildNavButton(
-          sections[safeCurrentIndex].name,
-          safeCurrentIndex,
-          sections.length,
+        Expanded(
+          child: _buildNavButton(
+            sections[safeCurrentIndex].name,
+            safeCurrentIndex,
+            sections.length,
+          ),
         ),
 
         // Show next button only if there are more than 1 section.
         if (sections.length > 1)
-          _buildNavButton(sections[nextIndex].name, nextIndex, sections.length),
+          Expanded(
+            // WRAP with Expanded
+            child: _buildNavButton(
+              sections[nextIndex].name,
+              nextIndex,
+              sections.length,
+            ),
+          ),
       ],
     );
   }
