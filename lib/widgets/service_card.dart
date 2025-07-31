@@ -7,10 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:dashymobile/models/dashboard_models.dart';
 import 'package:dashymobile/services/dashy_service.dart';
 
-/// A reusable widget that displays a single service as a clickable card.
-///
-/// If the service is a group (has sub-items), tapping it will open a dialog
-/// showing the sub-items. Otherwise, it will launch the service URL.
 class ServiceCard extends StatelessWidget {
   final ServiceItem item;
   final DashyService dashyService;
@@ -23,18 +19,11 @@ class ServiceCard extends StatelessWidget {
     this.showCaption = false,
   });
 
-  /// Launches a given URL after rewriting it. Shows an error on failure.
   Future<void> _launchUrl(BuildContext context, String url) async {
-    // Do not attempt to launch an empty URL. This prevents the crash.
-    if (url.isEmpty) {
-      return;
-    }
-
+    if (url.isEmpty) return;
     final String urlToLaunch = dashyService.rewriteServiceUrl(url);
     final Uri uri = Uri.parse(urlToLaunch);
-
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      // If the widget is still in the tree, show a SnackBar on failure.
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -46,14 +35,12 @@ class ServiceCard extends StatelessWidget {
     }
   }
 
-  /// Displays a dialog with a list of sub-items for the user to select.
   void _showSubItemsDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: Text(item.title),
-          // Use a constrained box to prevent the dialog from becoming too wide or tall.
           content: ConstrainedBox(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.6,
@@ -61,7 +48,6 @@ class ServiceCard extends StatelessWidget {
             ),
             child: SizedBox(
               width: double.maxFinite,
-              // Use ListView for a scrollable list of sub-items.
               child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: item.subItems!.length,
@@ -71,9 +57,7 @@ class ServiceCard extends StatelessWidget {
                     leading: SizedBox(
                       width: 40,
                       height: 40,
-                      child: _buildIcon(
-                        subItem.iconUrl,
-                      ), // Reusable icon builder
+                      child: _buildIcon(subItem.iconUrl),
                     ),
                     title: Text(subItem.title),
                     subtitle:
@@ -86,7 +70,6 @@ class ServiceCard extends StatelessWidget {
                           )
                         : null,
                     onTap: () {
-                      // Close the dialog before launching the URL.
                       Navigator.of(dialogContext).pop();
                       _launchUrl(context, subItem.launchUrl);
                     },
@@ -98,9 +81,7 @@ class ServiceCard extends StatelessWidget {
           actions: [
             TextButton(
               child: const Text('Close'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
+              onPressed: () => Navigator.of(dialogContext).pop(),
             ),
           ],
         );
@@ -113,7 +94,6 @@ class ServiceCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        // The tap behavior now depends on whether the item is a group.
         onTap: () {
           if (item.isGroup) {
             _showSubItemsDialog(context);
@@ -147,9 +127,8 @@ class ServiceCard extends StatelessWidget {
     );
   }
 
-  /// Determines whether to render a raster image, an SVG, or a local placeholder.
   Widget _buildIcon(String iconUrl) {
-    // THIS IS THE FIX: Check for our local placeholder constant first.
+    // NEW: Check for our local placeholder constant first.
     if (iconUrl == DashyService.localPlaceholderIcon) {
       return const Icon(Icons.broken_image, color: Colors.grey);
     }
