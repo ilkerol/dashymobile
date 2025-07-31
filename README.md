@@ -52,7 +52,7 @@ If you want to build the app yourself:
 This application is officially developed and maintained for **Android**.
 The codebase is written in Flutter and is largely platform-independent. An iOS version is technically possible, but would require a contributor with a macOS machine and an Apple Developer account to build, test, and maintain it. Community contributions for an iOS version are welcome!
 
-### WHhat's new in v1.1
+### What's new in v1.1
 
 This release focuses on adding support for more of Dashy's core features, allowing more users to see their complete dashboard layout natively.
 
