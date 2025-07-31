@@ -128,7 +128,6 @@ class ServiceCard extends StatelessWidget {
   }
 
   Widget _buildIcon(String iconUrl) {
-    // NEW: Check for our local placeholder constant first.
     if (iconUrl == DashyService.localPlaceholderIcon) {
       return const Icon(Icons.broken_image, color: Colors.grey);
     }

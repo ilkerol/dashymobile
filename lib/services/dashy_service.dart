@@ -7,8 +7,6 @@ import 'package:dashymobile/services/settings_service.dart';
 
 class DashyService {
   final SettingsService _settingsService = SettingsService();
-
-  // NEW: A constant to identify items that need a local placeholder icon.
   static const String localPlaceholderIcon = 'LOCAL_ASSET_PLACEHOLDER';
 
   String? _activeBaseUrl;
@@ -90,7 +88,6 @@ class DashyService {
           : iconUrl;
       iconUrl = '$activeBaseUrl/item-icons/$cleanIconPath';
     } else if (iconUrl.isEmpty) {
-      // CHANGED: Use the local constant instead of an internet URL.
       iconUrl = localPlaceholderIcon;
     }
     return ServiceItem(

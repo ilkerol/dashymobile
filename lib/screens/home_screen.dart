@@ -221,7 +221,6 @@ class _HomeScreenState extends State<HomeScreen> {
         // Show previous button only if there are more than 2 sections.
         if (sections.length > 2)
           Expanded(
-            // WRAP with Expanded
             child: _buildNavButton(
               sections[prevIndex].name,
               prevIndex,
@@ -231,7 +230,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // Always show the current page button.
         Expanded(
-          // WRAP with Expanded
           child: _buildNavButton(
             sections[safeCurrentIndex].name,
             safeCurrentIndex,

@@ -209,7 +209,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            // THIS IS THE PADDING FIX
             SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
           ],
         ),
