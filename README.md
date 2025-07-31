@@ -63,6 +63,8 @@ This release focuses on adding support for more of Dashy's core features, allowi
 
 ### 🐛 Bug Fixes
 - Fixed a critical crash that would occur when tapping on an Item Group that had an empty `url` field.
+- Fixed padding to stop android navigation bar interference with buttons in the settings sections
+- Fixed some minor rendering bugs
 
 ---
 
