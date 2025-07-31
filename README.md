@@ -54,5 +54,13 @@ The codebase is written in Flutter and is largely platform-independent. An iOS v
 
 ---
 
+### Versions
+
+Version 1.0
+- see above, in the next version I will tackle the svg icons, the icon groups and the option to show icon names
+
+
+
+
 This project was created with the goal of providing a companion app for the amazing self-hosted dashboard, Dashy.
 A big thank you to [Lissy93](https://github.com/Lissy93) for creating and maintaining it.
