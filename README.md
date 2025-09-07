@@ -10,6 +10,8 @@ This app provides a true native experience by fetching your `conf.yml` file from
 No more tiny icons in your browser that you can hardly click or accidentally click when scrolling. :-)
 It's the perfect way to access your homeserver services from your phone.
 
+IMPORTANT: If anyone here enjoys the app, I want to put it into the playstore because Google wants to stop sideloading on android. But to do so I need TWELVE testusers for a "closed testing". If anyone here would be so kind to give me his/her mail adress, i would send an invite link. That would be great, thanks a lot.
+
 ### Screenshots
 
 <p align="center">
