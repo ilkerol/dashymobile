@@ -37,7 +37,7 @@ projectfiles.sh
 /build/
 /ios/
 /android/
-
+/android/key.properties
 
 # Symbolication related
 app.*.symbols
