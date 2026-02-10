@@ -69,6 +69,25 @@ This release focuses on adding support for more of Dashy's core features, allowi
 - Fixed padding to stop android navigation bar interference with buttons in the settings sections
 - Fixed some minor rendering bugs
 
+
+### What's new in v1.2
+
+### Reverse Proxy Support
+- Added a new **Reverse Proxy URL** field in Settings
+- Users behind nginx, Caddy, or other reverse proxies can now use a full URL (e.g. \`https://dashy.example.com\`) instead of IP + port
+- Includes a test connection button for the reverse proxy URL
+
+### Authentication Support
+- Added optional **Username** and **Password** fields in Settings
+- Supports Dashy instances protected with HTTP Auth or built-in authentication
+- Credentials are stored securely on-device using encrypted storage
+- Auth headers are sent automatically when connecting to your Dashy instance
+
+### Notes
+- All existing IP + port functionality remains unchanged
+- No breaking changes — existing users can update without reconfiguring"
+
+
 ---
 
 This project was created with the goal of providing a companion app for the amazing self-hosted dashboard, Dashy.
