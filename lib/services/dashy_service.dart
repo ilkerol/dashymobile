@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:yaml/yaml.dart';
@@ -13,15 +14,27 @@ class DashyService {
   String? _localWlanIp;
   String? _zeroTierIp;
 
-  Future<ConfigFetchResult> fetchAndParseConfig(List<String> urlsToTry) async {
+  Future<ConfigFetchResult> fetchAndParseConfig(
+    List<String> urlsToTry, {
+    String? username,
+    String? password,
+  }) async {
     _localWlanIp = (await _settingsService.getLocalWlanIp())?.trim();
     _zeroTierIp = (await _settingsService.getZeroTierIp())?.trim();
 
     for (String baseUrl in urlsToTry) {
       if (baseUrl.isEmpty) continue;
       try {
+        final Map<String, String> headers = {};
+        if (username != null &&
+            username.isNotEmpty &&
+            password != null &&
+            password.isNotEmpty) {
+          final encoded = base64Encode(utf8.encode('$username:$password'));
+          headers['Authorization'] = 'Basic $encoded';
+        }
         final response = await http
-            .get(Uri.parse('$baseUrl/conf.yml'))
+            .get(Uri.parse('$baseUrl/conf.yml'), headers: headers)
             .timeout(const Duration(seconds: 4));
         if (response.statusCode == 200) {
           _activeBaseUrl = baseUrl;

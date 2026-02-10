@@ -78,6 +78,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final localWlanIp = (await _settingsService.getLocalWlanIp())?.trim();
     final zeroTierIp = (await _settingsService.getZeroTierIp())?.trim();
     final port = (await _settingsService.getDashyPort())?.trim();
+    final reverseProxyUrl = (await _settingsService.getReverseProxyUrl())
+        ?.trim();
+    final username = (await _settingsService.getDashyUsername())?.trim();
+    final password = (await _settingsService.getDashyPassword())?.trim();
 
     final urlsToTry = <String>[];
     if (localWlanIp != null &&
@@ -92,9 +96,19 @@ class _HomeScreenState extends State<HomeScreen> {
         port.isNotEmpty) {
       urlsToTry.add('http://$zeroTierIp:$port');
     }
+    if (reverseProxyUrl != null && reverseProxyUrl.isNotEmpty) {
+      final cleanUrl = reverseProxyUrl.endsWith('/')
+          ? reverseProxyUrl.substring(0, reverseProxyUrl.length - 1)
+          : reverseProxyUrl;
+      urlsToTry.add(cleanUrl);
+    }
 
     // Assign the future to the state variable to be used by the FutureBuilder.
-    final future = _dashyService.fetchAndParseConfig(urlsToTry);
+    final future = _dashyService.fetchAndParseConfig(
+      urlsToTry,
+      username: (username != null && username.isNotEmpty) ? username : null,
+      password: (password != null && password.isNotEmpty) ? password : null,
+    );
     setState(() {
       _dashboardFuture = future;
     });

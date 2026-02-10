@@ -30,6 +30,7 @@ IMPORTANT: If anyone here enjoys the app, I want to put it into the playstore be
 - **Customizable Sections:** Choose which sections from your config file are visible in the app via the settings menu.
 - **Modern UI:** Features a circular (infinitely looping) swipe-able interface for sections and a dynamic navigation bar.
 - **Light & Dark Modes:** Adapts to your preference, which can be toggled in settings.
+- **Reverse Proxy Support:** You can access dashy also if it is behind a reverse proxy instead of using your servers local or vlan IP
 
 ### 🚀 Getting Started
 

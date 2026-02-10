@@ -12,6 +12,9 @@ class SettingsService {
   static const String _keyDarkModeEnabled = 'darkModeEnabled';
   static const String _keySelectedSections = 'selectedSections';
   static const String _keyShowCaptions = 'showCaptions';
+  static const String _keyReverseProxyUrl = 'reverseProxyUrl';
+  static const String _keyDashyUsername = 'dashyUsername';
+  static const String _keyDashyPassword = 'dashyPassword';
 
   Future<void> saveLocalWlanIp(String ip) async =>
       await _storage.write(key: _keyLocalWlanIp, value: ip);
@@ -53,4 +56,19 @@ class SettingsService {
       await _storage.write(key: _keyShowCaptions, value: enabled.toString());
   Future<bool> getShowCaptions() async =>
       await _storage.read(key: _keyShowCaptions) == 'true';
+
+  Future<void> saveReverseProxyUrl(String url) async =>
+      await _storage.write(key: _keyReverseProxyUrl, value: url);
+  Future<String?> getReverseProxyUrl() async =>
+      await _storage.read(key: _keyReverseProxyUrl);
+
+  Future<void> saveDashyUsername(String username) async =>
+      await _storage.write(key: _keyDashyUsername, value: username);
+  Future<String?> getDashyUsername() async =>
+      await _storage.read(key: _keyDashyUsername);
+
+  Future<void> saveDashyPassword(String password) async =>
+      await _storage.write(key: _keyDashyPassword, value: password);
+  Future<String?> getDashyPassword() async =>
+      await _storage.read(key: _keyDashyPassword);
 }

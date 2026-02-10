@@ -29,6 +29,7 @@ class _StartupScreenState extends State<StartupScreen> {
     final settings = SettingsService();
     final localIp = await settings.getLocalWlanIp();
     final zeroTierIp = await settings.getZeroTierIp();
+    final reverseProxyUrl = await settings.getReverseProxyUrl();
 
     // A small delay to prevent a jarring screen flash on fast device storage.
     await Future.delayed(const Duration(milliseconds: 500));
@@ -36,10 +37,11 @@ class _StartupScreenState extends State<StartupScreen> {
     // A safety check to ensure the widget is still in the tree before navigating.
     if (!mounted) return;
 
-    // The app is considered configured if at least one IP address is saved.
+    // The app is considered configured if at least one connection method is saved.
     final bool isConfigured =
         (localIp != null && localIp.isNotEmpty) ||
-        (zeroTierIp != null && zeroTierIp.isNotEmpty);
+        (zeroTierIp != null && zeroTierIp.isNotEmpty) ||
+        (reverseProxyUrl != null && reverseProxyUrl.isNotEmpty);
 
     if (isConfigured) {
       Navigator.pushReplacement(

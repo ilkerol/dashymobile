@@ -1,6 +1,7 @@
 // lib/screens/settings_screen.dart
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:dashymobile/models/dashboard_models.dart';
@@ -24,6 +25,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _localWlanIpController = TextEditingController();
   final TextEditingController _zeroTierIpController = TextEditingController();
   final TextEditingController _dashyPortController = TextEditingController();
+  final TextEditingController _reverseProxyUrlController =
+      TextEditingController();
+  final TextEditingController _dashyUsernameController =
+      TextEditingController();
+  final TextEditingController _dashyPasswordController =
+      TextEditingController();
 
   bool _isDarkModeEnabled = true;
   bool _showCaptionsEnabled = false;
@@ -42,6 +49,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _localWlanIpController.dispose();
     _zeroTierIpController.dispose();
     _dashyPortController.dispose();
+    _reverseProxyUrlController.dispose();
+    _dashyUsernameController.dispose();
+    _dashyPasswordController.dispose();
     super.dispose();
   }
 
@@ -54,6 +64,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final localWlanIp = await _settingsService.getLocalWlanIp();
     final zeroTierIp = await _settingsService.getZeroTierIp();
     final dashyPort = await _settingsService.getDashyPort();
+    final reverseProxyUrl = await _settingsService.getReverseProxyUrl();
+    final dashyUsername = await _settingsService.getDashyUsername();
+    final dashyPassword = await _settingsService.getDashyPassword();
     final isDarkMode = await _settingsService.getDarkModeEnabled();
     final selectedSections = await _settingsService.getSelectedSections();
     final showCaptions = await _settingsService.getShowCaptions();
@@ -64,6 +77,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _localWlanIpController.text = localWlanIp ?? '';
       _zeroTierIpController.text = zeroTierIp ?? '';
       _dashyPortController.text = dashyPort ?? '4444';
+      _reverseProxyUrlController.text = reverseProxyUrl ?? '';
+      _dashyUsernameController.text = dashyUsername ?? '';
+      _dashyPasswordController.text = dashyPassword ?? '';
       _isDarkModeEnabled = isDarkMode;
       _selectedSectionNames = selectedSections.toSet();
       _showCaptionsEnabled = showCaptions;
@@ -74,6 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final localIp = _localWlanIpController.text.trim();
     final zeroTierIp = _zeroTierIpController.text.trim();
     final port = _dashyPortController.text.trim();
+    final reverseProxyUrl = _reverseProxyUrlController.text.trim();
 
     final urlsToTry = <String>[];
     if (localIp.isNotEmpty && port.isNotEmpty) {
@@ -82,11 +99,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (zeroTierIp.isNotEmpty && port.isNotEmpty) {
       urlsToTry.add('http://$zeroTierIp:$port');
     }
+    if (reverseProxyUrl.isNotEmpty) {
+      final cleanUrl = reverseProxyUrl.endsWith('/')
+          ? reverseProxyUrl.substring(0, reverseProxyUrl.length - 1)
+          : reverseProxyUrl;
+      urlsToTry.add(cleanUrl);
+    }
 
     if (urlsToTry.isNotEmpty) {
+      final username = _dashyUsernameController.text.trim();
+      final password = _dashyPasswordController.text.trim();
       setState(() {
         _allSectionsFuture = _dashyService
-            .fetchAndParseConfig(urlsToTry)
+            .fetchAndParseConfig(
+              urlsToTry,
+              username: username.isNotEmpty ? username : null,
+              password: password.isNotEmpty ? password : null,
+            )
             .then((result) => result.sections);
       });
     }
@@ -96,6 +125,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _settingsService.saveLocalWlanIp(_localWlanIpController.text.trim());
     await _settingsService.saveZeroTierIp(_zeroTierIpController.text.trim());
     await _settingsService.saveDashyPort(_dashyPortController.text.trim());
+    await _settingsService.saveReverseProxyUrl(
+      _reverseProxyUrlController.text.trim(),
+    );
+    await _settingsService.saveDashyUsername(
+      _dashyUsernameController.text.trim(),
+    );
+    await _settingsService.saveDashyPassword(
+      _dashyPasswordController.text.trim(),
+    );
     await _settingsService.saveDarkModeEnabled(_isDarkModeEnabled);
     await _settingsService.saveShowCaptions(_showCaptionsEnabled);
     await _settingsService.saveSelectedSections(_selectedSectionNames.toList());
@@ -158,6 +196,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
               controller: _dashyPortController,
               hint: '4444',
               keyboardType: TextInputType.number,
+            ),
+            const Divider(height: 48),
+            Text(
+              'Reverse Proxy (optional)',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Use a full URL instead of IP + port if Dashy is behind a reverse proxy.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            _buildTextFieldWithLabel(
+              label: 'Reverse Proxy URL:',
+              controller: _reverseProxyUrlController,
+              hint: 'https://dashy.example.com',
+              keyboardType: TextInputType.url,
+              onTest: _testReverseProxyConnection,
+            ),
+            const Divider(height: 48),
+            Text(
+              'Authentication (optional)',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'If your Dashy instance requires login (HTTP Auth or built-in auth).',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            _buildTextFieldWithLabel(
+              label: 'Dashy Username:',
+              controller: _dashyUsernameController,
+              hint: 'admin',
+            ),
+            const SizedBox(height: 16),
+            _buildTextFieldWithLabel(
+              label: 'Dashy Password:',
+              controller: _dashyPasswordController,
+              hint: '',
+              obscureText: true,
             ),
             const Divider(height: 48),
             Row(
@@ -259,6 +338,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     TextInputType keyboardType = TextInputType.text,
     String? hint,
     VoidCallback? onTest,
+    bool obscureText = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,6 +351,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: TextFormField(
                 controller: controller,
                 keyboardType: keyboardType,
+                obscureText: obscureText,
                 decoration: InputDecoration(
                   hintText: hint,
                   border: const OutlineInputBorder(),
@@ -301,10 +382,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _showFeedback('IP address and port cannot be empty.', isError: true);
       return;
     }
-    _showFeedback('Pinging http://$ip:$port/...', isError: false);
+    await _testUrl('http://${ip.trim()}:${port.trim()}');
+  }
+
+  Future<void> _testReverseProxyConnection() async {
+    final url = _reverseProxyUrlController.text.trim();
+    if (url.isEmpty) {
+      _showFeedback('Reverse Proxy URL cannot be empty.', isError: true);
+      return;
+    }
+    await _testUrl(url);
+  }
+
+  Future<void> _testUrl(String baseUrl) async {
+    final cleanUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    _showFeedback('Testing $cleanUrl/ ...', isError: false);
     try {
+      final Map<String, String> headers = {};
+      final username = _dashyUsernameController.text.trim();
+      final password = _dashyPasswordController.text.trim();
+      if (username.isNotEmpty && password.isNotEmpty) {
+        final encoded = base64Encode(utf8.encode('$username:$password'));
+        headers['Authorization'] = 'Basic $encoded';
+      }
       final response = await http
-          .head(Uri.parse('http://$ip:$port/conf.yml'))
+          .head(Uri.parse('$cleanUrl/conf.yml'), headers: headers)
           .timeout(const Duration(seconds: 5));
       if (response.statusCode >= 200 && response.statusCode < 300) {
         _showFeedback('Success! Connection established.', isError: false);
